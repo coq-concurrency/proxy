@@ -11,7 +11,8 @@ module File = struct
     | [file_name] ->
       Lwt.bind (Lwt_io.open_file Lwt_io.Input file_name) (fun file ->
       Lwt.bind (Lwt_io.read file) (fun content ->
-      Lwt_io.print content))
+      let content = Base64.encode content in
+      Lwt_io.printl ("File.read" ^ " " ^ content)))
     | _ -> failwith "wrong number of arguments"
 end
 
