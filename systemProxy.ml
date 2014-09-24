@@ -15,7 +15,7 @@ module File = struct
   let read (arguments : string list) : unit Lwt.t =
     match arguments with
     | [file_name] ->
-      Lwt.bind (Lwt_io.open_file Lwt_io.Input file_name) (fun file ->
+      Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
       Lwt.bind (Lwt_io.read file) (fun content ->
       let content = Base64.encode content in
       Lwt_io.printl ("File.read" ^ " " ^ file_name ^ " " ^ content)))
@@ -114,7 +114,6 @@ let handle (message : string) : unit Lwt.t =
     | _ -> failwith "unknown command"
 
 let rec main () : unit Lwt.t =
-  let _ = Heap.empty in (* TODO: remove *)
   Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
   Lwt.join [handle message; main ()])
 
