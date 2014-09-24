@@ -40,6 +40,22 @@ module TCPClientSocket = struct
     Lwt.join [
       Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id);
       recv_loop id client ]
+
+  let write (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [id; message] ->
+      (match int_of_string id with
+      | exception Failure "int_of_string" ->
+        failwith "the id number should be an integer"
+      | id ->
+        (match Heap.find !State.clients (Heap.Id.Make id) with
+        | None -> Lwt.return ()
+        | Some client ->
+          let message = Base64.decode message in
+          let length = String.length message in
+          Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
+          Lwt.return ())))
+    | _ -> failwith "one argument was expected"
 end
 
 module TCPServerSocket = struct
@@ -73,6 +89,7 @@ let handle (message : string) : unit Lwt.t =
     match command with
     | "Log.write" -> Log.write arguments
     | "File.read" -> File.read arguments
+    | "TCPClientSocket.write" -> TCPClientSocket.write arguments
     | "TCPServerSocket.bind" -> TCPServerSocket.bind arguments
     | _ -> failwith "unknown command"
 
