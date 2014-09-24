@@ -28,6 +28,9 @@ let add (heap : 'a t) (x : 'a) : (Id.t * 'a t) =
   let id = fresh_id heap in
   (id, Id.Map.add id x heap)
 
+let remove (heap : 'a t) (id : Id.t) : 'a t =
+  Id.Map.remove id heap
+
 let find (heap : 'a t) (id : Id.t) : 'a option =
   match Id.Map.find id heap with
   | x -> Some x

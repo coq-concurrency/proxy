@@ -55,6 +55,21 @@ module TCPClientSocket = struct
           let length = String.length message in
           Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
           Lwt.return ())))
+    | _ -> failwith "two arguments were expected"
+
+  let close (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [id] ->
+      (match int_of_string id with
+      | exception Failure "int_of_string" ->
+        failwith "the id number should be an integer"
+      | id ->
+        let id = Heap.Id.Make id in
+        (match Heap.find !State.clients id with
+        | None -> Lwt.return ()
+        | Some client ->
+          State.clients := Heap.remove !State.clients id;
+          Lwt_unix.close client))
     | _ -> failwith "one argument was expected"
 end
 
@@ -80,6 +95,21 @@ module TCPServerSocket = struct
           Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ Heap.Id.to_string id);
           accept_loop socket ])
     | _ -> failwith "one argument was expected"
+
+  let close (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [id] ->
+      (match int_of_string id with
+      | exception Failure "int_of_string" ->
+        failwith "the id number should be an integer"
+      | id ->
+        let id = Heap.Id.Make id in
+        (match Heap.find !State.servers id with
+        | None -> Lwt.return ()
+        | Some server ->
+          State.servers := Heap.remove !State.servers id;
+          Lwt_unix.close server))
+    | _ -> failwith "one argument was expected"
 end
 
 let handle (message : string) : unit Lwt.t =
@@ -90,7 +120,9 @@ let handle (message : string) : unit Lwt.t =
     | "Log.write" -> Log.write arguments
     | "File.read" -> File.read arguments
     | "TCPClientSocket.write" -> TCPClientSocket.write arguments
+    | "TCPClientSocket.close" -> TCPClientSocket.close arguments
     | "TCPServerSocket.bind" -> TCPServerSocket.bind arguments
+    | "TCPServerSocket.close" -> TCPServerSocket.close arguments
     | _ -> failwith "unknown command"
 
 let rec main () : unit Lwt.t =
