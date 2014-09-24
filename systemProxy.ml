@@ -44,32 +44,24 @@ module TCPClientSocket = struct
   let write (arguments : string list) : unit Lwt.t =
     match arguments with
     | [id; message] ->
-      (match int_of_string id with
-      | exception Failure "int_of_string" ->
-        failwith "the id number should be an integer"
-      | id ->
-        (match Heap.find !State.clients (Heap.Id.Make id) with
-        | None -> Lwt.return ()
-        | Some client ->
-          let message = Base64.decode message in
-          let length = String.length message in
-          Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
-          Lwt.return ())))
+      (match Heap.find !State.clients (Heap.Id.of_string id) with
+      | None -> Lwt.return ()
+      | Some client ->
+        let message = Base64.decode message in
+        let length = String.length message in
+        Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
+        Lwt.return ()))
     | _ -> failwith "two arguments were expected"
 
   let close (arguments : string list) : unit Lwt.t =
     match arguments with
     | [id] ->
-      (match int_of_string id with
-      | exception Failure "int_of_string" ->
-        failwith "the id number should be an integer"
-      | id ->
-        let id = Heap.Id.Make id in
-        (match Heap.find !State.clients id with
-        | None -> Lwt.return ()
-        | Some client ->
-          State.clients := Heap.remove !State.clients id;
-          Lwt_unix.close client))
+      let id = Heap.Id.of_string id in
+      (match Heap.find !State.clients id with
+      | None -> Lwt.return ()
+      | Some client ->
+        State.clients := Heap.remove !State.clients id;
+        Lwt_unix.close client)
     | _ -> failwith "one argument was expected"
 end
 
@@ -99,16 +91,12 @@ module TCPServerSocket = struct
   let close (arguments : string list) : unit Lwt.t =
     match arguments with
     | [id] ->
-      (match int_of_string id with
-      | exception Failure "int_of_string" ->
-        failwith "the id number should be an integer"
-      | id ->
-        let id = Heap.Id.Make id in
-        (match Heap.find !State.servers id with
-        | None -> Lwt.return ()
-        | Some server ->
-          State.servers := Heap.remove !State.servers id;
-          Lwt_unix.close server))
+      let id = Heap.Id.of_string id in
+      (match Heap.find !State.servers id with
+      | None -> Lwt.return ()
+      | Some server ->
+        State.servers := Heap.remove !State.servers id;
+        Lwt_unix.close server)
     | _ -> failwith "one argument was expected"
 end
 
