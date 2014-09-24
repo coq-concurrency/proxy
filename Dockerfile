@@ -8,6 +8,9 @@ RUN apt-get install -y gcc make git
 RUN apt-get install -y opam
 RUN opam init
 
+# OCaml 4.02.0
+RUN opam switch 4.02.0
+
 # Dependencies
 RUN apt-get install -y m4
 RUN opam install -y lwt base64

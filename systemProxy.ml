@@ -1,8 +1,12 @@
+module State = struct
+  let servers : Lwt_io.server Heap.t ref = ref Heap.empty
+end
+
 module Log = struct
   let write (arguments : string list) : unit Lwt.t =
     match arguments with
     | [message] -> Lwt_io.printl message
-    | _ -> failwith "wrong number of arguments"
+    | _ -> failwith "one argument was expected"
 end
 
 module File = struct
@@ -13,7 +17,24 @@ module File = struct
       Lwt.bind (Lwt_io.read file) (fun content ->
       let content = Base64.encode content in
       Lwt_io.printl ("File.read" ^ " " ^ content)))
-    | _ -> failwith "wrong number of arguments"
+    | _ -> failwith "one argument was expected"
+end
+
+module TCPServerSocket = struct
+  let bind (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [port] ->
+      (match int_of_string port with
+      | exception Failure "int_of_string" ->
+        failwith "the port number should be an integer"
+      | port ->
+        let address = Unix.ADDR_INET (Unix.inet_addr_loopback, port) in
+        let server =
+          Lwt_io.establish_server address (fun (input, output) -> ()) in
+        let (id, servers) = Heap.add !State.servers server in
+        State.servers := servers;
+        Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ (Heap.Id.to_string id)))
+    | _ -> failwith "one argument was expected"
 end
 
 let handle (message : string) : unit Lwt.t =
@@ -23,9 +44,11 @@ let handle (message : string) : unit Lwt.t =
     match command with
     | "Log.write" -> Log.write arguments
     | "File.read" -> File.read arguments
+    | "TCPServerSocket.bind" -> TCPServerSocket.bind arguments
     | _ -> failwith "unknown command"
 
 let rec main () : unit Lwt.t =
+  let _ = Heap.empty in (* TODO: remove *)
   Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
   Lwt.join [handle message; main ()])
 
