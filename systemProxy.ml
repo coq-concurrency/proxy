@@ -1,7 +1,3 @@
-(* module Client = struct
-  type t = Lwt_io.input_channel * Lwt_io.output_channel
-end *)
-
 module State = struct
   let servers : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 
@@ -22,26 +18,28 @@ module File = struct
       Lwt.bind (Lwt_io.open_file Lwt_io.Input file_name) (fun file ->
       Lwt.bind (Lwt_io.read file) (fun content ->
       let content = Base64.encode content in
-      Lwt_io.printl ("File.read" ^ " " ^ content)))
+      Lwt_io.printl ("File.read" ^ " " ^ file_name ^ " " ^ content)))
     | _ -> failwith "one argument was expected"
 end
 
 module TCPClientSocket = struct
-  let rec recv_loop (client : Lwt_unix.file_descr) : unit Lwt.t =
+  let rec recv_loop (id : Heap.Id.t) (client : Lwt_unix.file_descr)
+    : unit Lwt.t =
     let buffer_size = 32 in
     let buffer = String.create buffer_size in
     Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
     let message = Base64.encode (String.sub buffer 0 bytes) in
     Lwt.join [
-      Lwt_io.printl ("TCPClientSocket.read" ^ " " ^ message);
-      recv_loop client ])
+      Lwt_io.printl ("TCPClientSocket.read" ^ " " ^ Heap.Id.to_string id ^ " " ^
+        message);
+      recv_loop id client ])
 
   let new_client (client : Lwt_unix.file_descr) : unit Lwt.t =
     let (id, clients) = Heap.add !State.clients client in
     State.clients := clients;
     Lwt.join [
       Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id);
-      recv_loop client ]
+      recv_loop id client ]
 end
 
 module TCPServerSocket = struct
