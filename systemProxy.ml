@@ -1,5 +1,11 @@
+(* module Client = struct
+  type t = Lwt_io.input_channel * Lwt_io.output_channel
+end *)
+
 module State = struct
-  let servers : Lwt_io.server Heap.t ref = ref Heap.empty
+  let servers : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
+
+  let clients : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 end
 
 module Log = struct
@@ -20,7 +26,18 @@ module File = struct
     | _ -> failwith "one argument was expected"
 end
 
+module TCPClientSocket = struct
+  let new_client (client : Lwt_unix.file_descr) : unit Lwt.t =
+    let (id, clients) = Heap.add !State.clients client in
+    State.clients := clients;
+    Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id)
+end
+
 module TCPServerSocket = struct
+  let rec accept_loop (server : Lwt_unix.file_descr) : unit Lwt.t =
+    Lwt.bind (Lwt_unix.accept server) (fun (client, _) ->
+    Lwt.join [ TCPClientSocket.new_client client; accept_loop server ])
+  
   let bind (arguments : string list) : unit Lwt.t =
     match arguments with
     | [port] ->
@@ -28,12 +45,15 @@ module TCPServerSocket = struct
       | exception Failure "int_of_string" ->
         failwith "the port number should be an integer"
       | port ->
+        let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
         let address = Unix.ADDR_INET (Unix.inet_addr_loopback, port) in
-        let server =
-          Lwt_io.establish_server address (fun (input, output) -> ()) in
-        let (id, servers) = Heap.add !State.servers server in
+        Lwt_unix.bind socket address;
+        Lwt_unix.listen socket 5;
+        let (id, servers) = Heap.add !State.servers socket in
         State.servers := servers;
-        Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ (Heap.Id.to_string id)))
+        Lwt.join [
+          Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ Heap.Id.to_string id);
+          accept_loop socket])
     | _ -> failwith "one argument was expected"
 end
 

@@ -14,3 +14,7 @@ RUN opam switch 4.02.0
 # Dependencies
 RUN apt-get install -y m4
 RUN opam install -y lwt base64
+
+# Setup a working environment
+RUN apt-get install -y rlwrap screen telnet
+WORKDIR /root/src
