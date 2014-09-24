@@ -9,9 +9,9 @@ module File = struct
   let read (arguments : string list) : unit Lwt.t =
     match arguments with
     | [file_name] ->
-      let lines = Lwt_io.lines_of_file file_name in
-      Lwt.bind (Lwt_stream.fold (fun s1 s2 -> s1 ^ "\n" ^ s2) lines "") (fun content ->
-      Lwt_io.print content)
+      Lwt.bind (Lwt_io.open_file Lwt_io.Input file_name) (fun file ->
+      Lwt.bind (Lwt_io.read file) (fun content ->
+      Lwt_io.print content))
     | _ -> failwith "wrong number of arguments"
 end
 
