@@ -27,17 +27,28 @@ module File = struct
 end
 
 module TCPClientSocket = struct
+  let rec recv_loop (client : Lwt_unix.file_descr) : unit Lwt.t =
+    let buffer_size = 32 in
+    let buffer = String.create buffer_size in
+    Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
+    let message = Base64.encode (String.sub buffer 0 bytes) in
+    Lwt.join [
+      Lwt_io.printl ("TCPClientSocket.read" ^ " " ^ message);
+      recv_loop client ])
+
   let new_client (client : Lwt_unix.file_descr) : unit Lwt.t =
     let (id, clients) = Heap.add !State.clients client in
     State.clients := clients;
-    Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id)
+    Lwt.join [
+      Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id);
+      recv_loop client ]
 end
 
 module TCPServerSocket = struct
   let rec accept_loop (server : Lwt_unix.file_descr) : unit Lwt.t =
     Lwt.bind (Lwt_unix.accept server) (fun (client, _) ->
     Lwt.join [ TCPClientSocket.new_client client; accept_loop server ])
-  
+
   let bind (arguments : string list) : unit Lwt.t =
     match arguments with
     | [port] ->
@@ -53,7 +64,7 @@ module TCPServerSocket = struct
         State.servers := servers;
         Lwt.join [
           Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ Heap.Id.to_string id);
-          accept_loop socket])
+          accept_loop socket ])
     | _ -> failwith "one argument was expected"
 end
 
