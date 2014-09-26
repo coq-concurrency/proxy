@@ -16,6 +16,6 @@ RUN apt-get install -y m4
 RUN opam install -y lwt base64
 
 # Setup a working environment
-RUN apt-get install -y rlwrap screen telnet
+RUN apt-get install -y rlwrap screen telnet htop nano
 RUN chmod 777 /var/run/screen
 WORKDIR /root/src

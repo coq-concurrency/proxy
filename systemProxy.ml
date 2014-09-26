@@ -1,13 +1,14 @@
 module State = struct
   let servers : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
-
   let clients : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 end
 
 module Log = struct
   let write (arguments : string list) : unit Lwt.t =
     match arguments with
-    | [message] -> Lwt_io.printl message
+    | [message] ->
+      let message = Base64.decode message in
+      Lwt_io.write_line Lwt_io.stderr message
     | _ -> failwith "one argument was expected"
 end
 
@@ -113,8 +114,12 @@ let handle (message : string) : unit Lwt.t =
     | "TCPServerSocket.close" -> TCPServerSocket.close arguments
     | _ -> failwith "unknown command"
 
-let rec main () : unit Lwt.t =
+let rec loop_on_inputs () : unit Lwt.t =
   Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
-  Lwt.join [handle message; main ()])
+  Lwt.join [handle message; loop_on_inputs ()])
+
+let rec main () : unit Lwt.t =
+  Lwt.bind (Lwt_io.write_line Lwt_io.stderr "System proxy started.") (fun _ ->
+  loop_on_inputs ())
 
 ;;Lwt_main.run (main ())
