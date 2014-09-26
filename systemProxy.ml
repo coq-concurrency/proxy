@@ -26,7 +26,7 @@ end
 module TCPClientSocket = struct
   let rec recv_loop (id : Heap.Id.t) (client : Lwt_unix.file_descr)
     : unit Lwt.t =
-    let buffer_size = 32 in
+    let buffer_size = 1024 in
     let buffer = String.create buffer_size in
     Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
     let message = Base64.encode (String.sub buffer 0 bytes) in
@@ -79,7 +79,7 @@ module TCPServerSocket = struct
         failwith "the port number should be an integer"
       | port ->
         let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
-        let address = Unix.ADDR_INET (Unix.inet_addr_loopback, port) in
+        let address = Unix.ADDR_INET (Unix.inet_addr_any, port) in
         Lwt_unix.bind socket address;
         Lwt_unix.listen socket 5;
         let (id, servers) = Heap.add !State.servers socket in
