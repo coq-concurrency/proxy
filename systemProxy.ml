@@ -23,6 +23,13 @@ module File = struct
     | _ -> failwith "one argument was expected"
 end
 
+module System = struct
+  let exit (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [] -> exit 0
+    | _ -> failwith "no argument were expected"
+end
+
 module TCPClientSocket = struct
   let rec recv_loop (id : Heap.Id.t) (client : Lwt_unix.file_descr)
     : unit Lwt.t =
@@ -105,14 +112,15 @@ let handle (message : string) : unit Lwt.t =
   match Str.split (Str.regexp_string " ") message with
   | [] -> failwith "message empty"
   | command :: arguments ->
-    match command with
+    (match command with
     | "Log.write" -> Log.write arguments
     | "File.read" -> File.read arguments
+    | "System.exit" -> System.exit arguments
     | "TCPClientSocket.write" -> TCPClientSocket.write arguments
     | "TCPClientSocket.close" -> TCPClientSocket.close arguments
     | "TCPServerSocket.bind" -> TCPServerSocket.bind arguments
     | "TCPServerSocket.close" -> TCPServerSocket.close arguments
-    | _ -> failwith "unknown command"
+    | _ -> failwith "unknown command")
 
 let rec loop_on_inputs () : unit Lwt.t =
   Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->

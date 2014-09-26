@@ -3,3 +3,7 @@ default:
 
 clean:
 	ocamlbuild -clean
+
+helloWorld:
+	cd tests && ocamlbuild helloWorld.native -use-ocamlfind -package base64,str,unix
+	tests/helloWorld.native
