@@ -19,15 +19,8 @@ module File = struct
       Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
       Lwt.bind (Lwt_io.read file) (fun content ->
       let content = Base64.encode content in
-      Lwt_io.printl ("File.read" ^ " " ^ file_name ^ " " ^ content)))
+      Lwt_io.printl ("File.Read" ^ " " ^ file_name ^ " " ^ content)))
     | _ -> failwith "one argument was expected"
-end
-
-module System = struct
-  let exit (arguments : string list) : unit Lwt.t =
-    match arguments with
-    | [] -> exit 0
-    | _ -> failwith "no argument were expected"
 end
 
 module TCPClientSocket = struct
@@ -38,7 +31,7 @@ module TCPClientSocket = struct
     Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
     let message = Base64.encode (String.sub buffer 0 bytes) in
     Lwt.join [
-      Lwt_io.printl ("TCPClientSocket.read" ^ " " ^ Heap.Id.to_string id ^ " " ^
+      Lwt_io.printl ("TCPClientSocket.Read" ^ " " ^ Heap.Id.to_string id ^ " " ^
         message);
       recv_loop id client ])
 
@@ -46,7 +39,7 @@ module TCPClientSocket = struct
     let (id, clients) = Heap.add !State.clients client in
     State.clients := clients;
     Lwt.join [
-      Lwt_io.printl ("TCPClientSocket.accepted" ^ " " ^ Heap.Id.to_string id);
+      Lwt_io.printl ("TCPClientSocket.Accepted" ^ " " ^ Heap.Id.to_string id);
       recv_loop id client ]
 
   let write (arguments : string list) : unit Lwt.t =
@@ -92,7 +85,7 @@ module TCPServerSocket = struct
         let (id, servers) = Heap.add !State.servers socket in
         State.servers := servers;
         Lwt.join [
-          Lwt_io.printl ("TCPServerSocket.bound" ^ " " ^ Heap.Id.to_string id);
+          Lwt_io.printl ("TCPServerSocket.Bound" ^ " " ^ Heap.Id.to_string id);
           accept_loop socket ])
     | _ -> failwith "one argument was expected"
 
@@ -113,13 +106,12 @@ let handle (message : string) : unit Lwt.t =
   | [] -> failwith "message empty"
   | command :: arguments ->
     (match command with
-    | "Log.write" -> Log.write arguments
-    | "File.read" -> File.read arguments
-    | "System.exit" -> System.exit arguments
-    | "TCPClientSocket.write" -> TCPClientSocket.write arguments
-    | "TCPClientSocket.close" -> TCPClientSocket.close arguments
-    | "TCPServerSocket.bind" -> TCPServerSocket.bind arguments
-    | "TCPServerSocket.close" -> TCPServerSocket.close arguments
+    | "Log.Write" -> Log.write arguments
+    | "File.Read" -> File.read arguments
+    | "TCPClientSocket.Write" -> TCPClientSocket.write arguments
+    | "TCPClientSocket.Close" -> TCPClientSocket.close arguments
+    | "TCPServerSocket.Bind" -> TCPServerSocket.bind arguments
+    | "TCPServerSocket.Close" -> TCPServerSocket.close arguments
     | _ -> failwith "unknown command")
 
 let rec loop_on_inputs () : unit Lwt.t =
