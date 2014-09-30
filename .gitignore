@@ -1,3 +1,4 @@
+tests/
 _build/
 *.native
 *.annot
