@@ -115,8 +115,12 @@ let handle (message : string) : unit Lwt.t =
     | _ -> failwith "unknown command")
 
 let rec loop_on_inputs () : unit Lwt.t =
-  Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
-  Lwt.join [handle message; loop_on_inputs ()])
+  Lwt.catch (fun () ->
+    Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
+    Lwt.join [handle message; loop_on_inputs ()]))
+    (function
+      | End_of_file -> Lwt.return ()
+      | e -> raise e)
 
 let rec main () : unit Lwt.t =
   Lwt.bind (Lwt_io.write_line Lwt_io.stderr "System proxy started.") (fun _ ->
