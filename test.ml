@@ -8,7 +8,7 @@ let run (command : string) : unit =
 let do_test (test : string) =
   Sys.chdir "tests/";
   let native = Filename.chop_extension test ^ ".native" in
-  let compile = "ocamlbuild " ^ native ^ " -use-ocamlfind -package base64,str,unix" in
+  let compile = "ocamlbuild " ^ native ^ " -use-ocamlfind -package base64,num,str,unix" in
   run compile;
   Sys.chdir "../";
   run ("tests/" ^ native)
