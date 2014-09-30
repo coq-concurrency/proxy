@@ -123,7 +123,6 @@ let rec loop_on_inputs () : unit Lwt.t =
       | e -> raise e)
 
 let rec main () : unit Lwt.t =
-  Lwt.bind (Lwt_io.write_line Lwt_io.stderr "System proxy started.") (fun _ ->
-  loop_on_inputs ())
+  loop_on_inputs ()
 
 ;;Lwt_main.run (main ())
