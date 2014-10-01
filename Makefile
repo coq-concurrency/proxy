@@ -1,5 +1,5 @@
 default:
-	ocamlbuild systemProxy.native -use-ocamlfind -package base64,lwt,lwt.unix,str
+	ocamlbuild systemProxy.native -use-ocamlfind -package base64,lwt,lwt.unix,num,str
 
 clean:
 	ocamlbuild -clean

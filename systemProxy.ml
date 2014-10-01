@@ -4,11 +4,14 @@ module State = struct
 end
 
 module Log = struct
-  let write (arguments : string list) : unit Lwt.t =
+  let write (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [message] ->
       let message = Base64.decode message in
-      Lwt_io.write_line Lwt_io.stderr message
+      Lwt.catch (fun _ ->
+        Lwt.bind (Lwt_io.write_line Lwt_io.stderr message) (fun _ ->
+        Lwt_io.printl ("Log " ^ id ^ " true")))
+        (fun _ -> Lwt_io.printl ("Log " ^ id ^ " false"))
     | _ -> failwith "one argument was expected"
 end
 
@@ -74,19 +77,23 @@ module TCPServerSocket = struct
   let bind (arguments : string list) : unit Lwt.t =
     match arguments with
     | [port] ->
-      (match int_of_string port with
+      (match Big_int.big_int_of_string port with
       | exception Failure "int_of_string" ->
         failwith "the port number should be an integer"
       | port ->
-        let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
-        let address = Unix.ADDR_INET (Unix.inet_addr_any, port) in
-        Lwt_unix.bind socket address;
-        Lwt_unix.listen socket 5;
-        let (id, servers) = Heap.add !State.servers socket in
-        State.servers := servers;
-        Lwt.join [
-          Lwt_io.printl ("TCPServerSocket.Bound" ^ " " ^ Heap.Id.to_string id);
-          accept_loop socket ])
+        (match Big_int.int_of_big_int port with
+        | exception Failure "int_of_big_int" ->
+          failwith "TODO"
+        | port ->
+          let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
+          let address = Unix.ADDR_INET (Unix.inet_addr_any, port) in
+          Lwt_unix.bind socket address;
+          Lwt_unix.listen socket 5;
+          let (id, servers) = Heap.add !State.servers socket in
+          State.servers := servers;
+          Lwt.join [
+            Lwt_io.printl ("TCPServerSocket.Bound" ^ " " ^ Heap.Id.to_string id);
+            accept_loop socket ]))
     | _ -> failwith "one argument was expected"
 
   let close (arguments : string list) : unit Lwt.t =
@@ -103,16 +110,16 @@ end
 
 let handle (message : string) : unit Lwt.t =
   match Str.split (Str.regexp_string " ") message with
-  | [] -> failwith "message empty"
-  | command :: arguments ->
+  | command :: id :: arguments ->
     (match command with
-    | "Log.Write" -> Log.write arguments
+    | "Log" -> Log.write id arguments
     | "File.Read" -> File.read arguments
     | "TCPClientSocket.Write" -> TCPClientSocket.write arguments
     | "TCPClientSocket.Close" -> TCPClientSocket.close arguments
     | "TCPServerSocket.Bind" -> TCPServerSocket.bind arguments
     | "TCPServerSocket.Close" -> TCPServerSocket.close arguments
     | _ -> failwith "unknown command")
+  | _ -> failwith "message too short"
 
 let rec loop_on_inputs () : unit Lwt.t =
   Lwt.catch (fun () ->
