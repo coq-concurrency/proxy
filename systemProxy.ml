@@ -31,42 +31,31 @@ module ClientSocket = struct
   let read (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [client_id] ->
-      (match Heap.find !State.clients (Heap.Id.of_string client_id) with
-      | None -> Lwt.return ()
-      | Some client ->
-        Lwt.catch (fun _ ->
-          let buffer_size = 1024 in
-          let buffer = String.create buffer_size in
-          Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
-          let message = Base64.encode (String.sub buffer 0 bytes) in
-          Lwt_io.printl ("ClientSocketRead " ^ id ^ " " ^ message)))
-          (fun _ -> Lwt_io.printl ("ClientSocketRead " ^ id ^ " ")))
+      Lwt.catch (fun _ ->
+        (match Heap.find !State.clients (Heap.Id.of_string client_id) with
+        | None -> failwith "Client socket not found."
+        | Some client ->
+            let buffer_size = 1024 in
+            let buffer = String.create buffer_size in
+            Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
+            let message = Base64.encode (String.sub buffer 0 bytes) in
+            Lwt_io.printl ("ClientSocketRead " ^ id ^ " " ^ message))))
+        (fun _ -> Lwt_io.printl ("ClientSocketRead " ^ id ^ " "))
     | _ -> failwith "one argument was expected"
 
   let write (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [client_id; message] ->
-      (match Heap.find !State.clients (Heap.Id.of_string client_id) with
-      | None -> Lwt.return ()
-      | Some client ->
-        Lwt.catch (fun _ ->
+      Lwt.catch (fun _ ->
+        (match Heap.find !State.clients (Heap.Id.of_string client_id) with
+        | None -> failwith "Client socket not found."
+        | Some client ->
           let message = Base64.decode message in
           let length = String.length message in
           Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
-          Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true")))
-          (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false")))
+          Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true"))))
+        (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false"))
     | _ -> failwith "two arguments were expected"
-
-  (*let close (arguments : string list) : unit Lwt.t =
-    match arguments with
-    | [id] ->
-      let id = Heap.Id.of_string id in
-      (match Heap.find !State.clients id with
-      | None -> Lwt.return ()
-      | Some client ->
-        State.clients := Heap.remove !State.clients id;
-        Lwt_unix.close client)
-    | _ -> failwith "one argument was expected"*)
 end
 
 module ServerSocket = struct
@@ -97,17 +86,6 @@ module ServerSocket = struct
             accept_loop id socket))
           (fun _ -> Lwt_io.printl ("ServerSocket.Bound " ^ id ^ " ")))
     | _ -> failwith "one argument was expected"
-
-  (*let close (arguments : string list) : unit Lwt.t =
-    match arguments with
-    | [id] ->
-      let id = Heap.Id.of_string id in
-      (match Heap.find !State.servers id with
-      | None -> Lwt.return ()
-      | Some server ->
-        State.servers := Heap.remove !State.servers id;
-        Lwt_unix.close server)
-    | _ -> failwith "one argument was expected"*)
 end
 
 let handle (message : string) : unit Lwt.t =
