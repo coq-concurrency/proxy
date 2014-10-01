@@ -16,13 +16,15 @@ module Log = struct
 end
 
 module File = struct
-  let read (arguments : string list) : unit Lwt.t =
+  let read (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [file_name] ->
-      Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
-      Lwt.bind (Lwt_io.read file) (fun content ->
-      let content = Base64.encode content in
-      Lwt_io.printl ("File.Read" ^ " " ^ file_name ^ " " ^ content)))
+      Lwt.catch (fun _ -> 
+        Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
+        Lwt.bind (Lwt_io.read file) (fun content ->
+        let content = Base64.encode content in
+        Lwt_io.printl ("FileRead " ^ id ^ " " ^ content))))
+        (fun _ -> Lwt_io.printl ("FileRead " ^ id ^ " "))
     | _ -> failwith "one argument was expected"
 end
 
@@ -113,7 +115,7 @@ let handle (message : string) : unit Lwt.t =
   | command :: id :: arguments ->
     (match command with
     | "Log" -> Log.write id arguments
-    | "File.Read" -> File.read arguments
+    | "FileRead" -> File.read id arguments
     | "TCPClientSocket.Write" -> TCPClientSocket.write arguments
     | "TCPClientSocket.Close" -> TCPClientSocket.close arguments
     | "TCPServerSocket.Bind" -> TCPServerSocket.bind arguments
