@@ -1,5 +1,4 @@
 module State = struct
-  let servers : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
   let clients : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 end
 
@@ -28,38 +27,37 @@ module File = struct
     | _ -> failwith "one argument was expected"
 end
 
-module TCPClientSocket = struct
-  let rec recv_loop (id : Heap.Id.t) (client : Lwt_unix.file_descr)
-    : unit Lwt.t =
-    let buffer_size = 1024 in
-    let buffer = String.create buffer_size in
-    Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
-    let message = Base64.encode (String.sub buffer 0 bytes) in
-    Lwt.join [
-      Lwt_io.printl ("TCPClientSocket.Read" ^ " " ^ Heap.Id.to_string id ^ " " ^
-        message);
-      recv_loop id client ])
-
-  let new_client (client : Lwt_unix.file_descr) : unit Lwt.t =
-    let (id, clients) = Heap.add !State.clients client in
-    State.clients := clients;
-    Lwt.join [
-      Lwt_io.printl ("TCPClientSocket.Accepted" ^ " " ^ Heap.Id.to_string id);
-      recv_loop id client ]
-
-  let write (arguments : string list) : unit Lwt.t =
+module ClientSocket = struct
+  let read (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
-    | [id; message] ->
-      (match Heap.find !State.clients (Heap.Id.of_string id) with
+    | [client_id] ->
+      (match Heap.find !State.clients (Heap.Id.of_string client_id) with
       | None -> Lwt.return ()
       | Some client ->
-        let message = Base64.decode message in
-        let length = String.length message in
-        Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
-        Lwt.return ()))
+        Lwt.catch (fun _ ->
+          let buffer_size = 1024 in
+          let buffer = String.create buffer_size in
+          Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
+          let message = Base64.encode (String.sub buffer 0 bytes) in
+          Lwt_io.printl ("ClientSocketRead " ^ id ^ " " ^ message)))
+          (fun _ -> Lwt_io.printl ("ClientSocketRead " ^ id ^ " ")))
+    | _ -> failwith "one argument was expected"
+
+  let write (id : string) (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [client_id; message] ->
+      (match Heap.find !State.clients (Heap.Id.of_string client_id) with
+      | None -> Lwt.return ()
+      | Some client ->
+        Lwt.catch (fun _ ->
+          let message = Base64.decode message in
+          let length = String.length message in
+          Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
+          Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true")))
+          (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false")))
     | _ -> failwith "two arguments were expected"
 
-  let close (arguments : string list) : unit Lwt.t =
+  (*let close (arguments : string list) : unit Lwt.t =
     match arguments with
     | [id] ->
       let id = Heap.Id.of_string id in
@@ -68,37 +66,39 @@ module TCPClientSocket = struct
       | Some client ->
         State.clients := Heap.remove !State.clients id;
         Lwt_unix.close client)
-    | _ -> failwith "one argument was expected"
+    | _ -> failwith "one argument was expected"*)
 end
 
-module TCPServerSocket = struct
-  let rec accept_loop (server : Lwt_unix.file_descr) : unit Lwt.t =
+module ServerSocket = struct
+  let rec accept_loop (id : string) (server : Lwt_unix.file_descr) : unit Lwt.t =
     Lwt.bind (Lwt_unix.accept server) (fun (client, _) ->
-    Lwt.join [ TCPClientSocket.new_client client; accept_loop server ])
+    let (client_id, clients) = Heap.add !State.clients client in
+    State.clients := clients;
+    Lwt.join [
+      Lwt_io.printl ("ServerSocketBind " ^ id ^ " " ^ Heap.Id.to_string client_id);
+      accept_loop id server ])
 
-  let bind (arguments : string list) : unit Lwt.t =
+  let bind (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [port] ->
       (match Big_int.big_int_of_string port with
       | exception Failure "int_of_string" ->
         failwith "the port number should be an integer"
       | port ->
-        (match Big_int.int_of_big_int port with
-        | exception Failure "int_of_big_int" ->
-          failwith "TODO"
-        | port ->
-          let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
-          let address = Unix.ADDR_INET (Unix.inet_addr_any, port) in
-          Lwt_unix.bind socket address;
-          Lwt_unix.listen socket 5;
-          let (id, servers) = Heap.add !State.servers socket in
-          State.servers := servers;
-          Lwt.join [
-            Lwt_io.printl ("TCPServerSocket.Bound" ^ " " ^ Heap.Id.to_string id);
-            accept_loop socket ]))
+        Lwt.catch (fun _ ->
+          (match Big_int.int_of_big_int port with
+          | exception Failure "int_of_big_int" ->
+            failwith "the port number is too large to fit in an int"
+          | port ->
+            let socket = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
+            let address = Unix.ADDR_INET (Unix.inet_addr_any, port) in
+            Lwt_unix.bind socket address;
+            Lwt_unix.listen socket 5;
+            accept_loop id socket))
+          (fun _ -> Lwt_io.printl ("ServerSocket.Bound " ^ id ^ " ")))
     | _ -> failwith "one argument was expected"
 
-  let close (arguments : string list) : unit Lwt.t =
+  (*let close (arguments : string list) : unit Lwt.t =
     match arguments with
     | [id] ->
       let id = Heap.Id.of_string id in
@@ -107,7 +107,7 @@ module TCPServerSocket = struct
       | Some server ->
         State.servers := Heap.remove !State.servers id;
         Lwt_unix.close server)
-    | _ -> failwith "one argument was expected"
+    | _ -> failwith "one argument was expected"*)
 end
 
 let handle (message : string) : unit Lwt.t =
@@ -116,10 +116,9 @@ let handle (message : string) : unit Lwt.t =
     (match command with
     | "Log" -> Log.write id arguments
     | "FileRead" -> File.read id arguments
-    | "TCPClientSocket.Write" -> TCPClientSocket.write arguments
-    | "TCPClientSocket.Close" -> TCPClientSocket.close arguments
-    | "TCPServerSocket.Bind" -> TCPServerSocket.bind arguments
-    | "TCPServerSocket.Close" -> TCPServerSocket.close arguments
+    | "ServerSocketBind" -> ServerSocket.bind id arguments
+    | "ClientSocketRead" -> ClientSocket.read id arguments
+    | "ClientSocketWrite" -> ClientSocket.write id arguments
     | _ -> failwith "unknown command")
   | _ -> failwith "message too short"
 
