@@ -84,7 +84,7 @@ module ServerSocket = struct
             Lwt_unix.bind socket address;
             Lwt_unix.listen socket 5;
             accept_loop id socket))
-          (fun _ -> Lwt_io.printl ("ServerSocket.Bound " ^ id ^ " ")))
+          (fun _ -> Lwt_io.printl ("ServerSocketBind " ^ id ^ " ")))
     | _ -> failwith "one argument was expected"
 end
 
