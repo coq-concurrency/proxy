@@ -32,7 +32,8 @@ module ClientSocket = struct
     match arguments with
     | [client_id] ->
       Lwt.catch (fun _ ->
-        (match Heap.find !State.clients (Heap.Id.of_string client_id) with
+        let client_id = Heap.Id.of_string client_id in
+        (match Heap.find !State.clients client_id with
         | None -> failwith "Client socket not found."
         | Some client ->
             let buffer_size = 1024 in
@@ -47,7 +48,8 @@ module ClientSocket = struct
     match arguments with
     | [client_id; message] ->
       Lwt.catch (fun _ ->
-        (match Heap.find !State.clients (Heap.Id.of_string client_id) with
+        let client_id = Heap.Id.of_string client_id in
+        (match Heap.find !State.clients client_id with
         | None -> failwith "Client socket not found."
         | Some client ->
           let message = Base64.decode message in
@@ -56,6 +58,20 @@ module ClientSocket = struct
           Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true"))))
         (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false"))
     | _ -> failwith "two arguments were expected"
+
+  let close (id : string) (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [client_id] ->
+      Lwt.catch (fun _ ->
+        let client_id = Heap.Id.of_string client_id in
+        (match Heap.find !State.clients client_id with
+        | None -> failwith "Client socket not found."
+        | Some client ->
+          State.clients := Heap.remove !State.clients client_id;
+          let _ = Lwt_unix.close client in
+          Lwt_io.printl ("ClientSocketClose " ^ id ^ " true")))
+        (fun _ -> Lwt_io.printl ("ClientSocketClose " ^ id ^ " false"))
+    | _ -> failwith "one argument was expected"
 end
 
 module ServerSocket = struct
@@ -97,6 +113,7 @@ let handle (message : string) : unit Lwt.t =
     | "ServerSocketBind" -> ServerSocket.bind id arguments
     | "ClientSocketRead" -> ClientSocket.read id arguments
     | "ClientSocketWrite" -> ClientSocket.write id arguments
+    | "ClientSocketClose" -> ClientSocket.close id arguments
     | _ -> failwith "unknown command")
   | _ -> failwith "message too short"
 
