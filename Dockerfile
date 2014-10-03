@@ -19,3 +19,6 @@ RUN opam install -y lwt base64
 RUN apt-get install -y rlwrap screen telnet htop nano inotify-tools
 RUN chmod 777 /var/run/screen
 WORKDIR /root/src
+
+ADD website /root/website
+CMD eval `opam config env`; make && ocaml test.ml httpServer.ml /root/website
