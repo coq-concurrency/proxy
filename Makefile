@@ -1,5 +1,8 @@
 default:
-	ocamlbuild systemProxy.native -use-ocamlfind -package base64,lwt,lwt.unix,num,str
+	ocamlbuild coqConcurrencyProxy.native coqConcurrencyProxy.byte -use-ocamlfind -package base64,lwt,lwt.unix,num,str
+
+install:
+	ocamlfind install coq-concurrency-proxy META coqConcurrencyProxy.native coqConcurrencyProxy.byte
 
 clean:
 	ocamlbuild -clean

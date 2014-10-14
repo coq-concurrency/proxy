@@ -20,9 +20,9 @@ RUN opam install -y lwt base64
 # RUN chmod 777 /var/run/screen
 
 # Compile
-ADD . /root/coq-concurrency-extraction
-WORKDIR /root/coq-concurrency-extraction
-RUN eval `opam config env`; make
+ADD . /root/coq-concurrency-proxy
+WORKDIR /root/coq-concurrency-proxy
+RUN eval `opam config env`; make && make install
 
 # Run the web server
 ADD website /root/website

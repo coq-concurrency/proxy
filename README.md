@@ -1,4 +1,2 @@
-coq-concurrency-extraction
-==========================
-
-Tools to extract concurrent Coq programs to OCaml.
+# Concurrency Proxy
+A proxy to interface concurrent Coq program with the operating system.
