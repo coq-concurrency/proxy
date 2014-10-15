@@ -1,4 +1,0 @@
-description = "A proxy to interface concurrent Coq program with the operating system."
-archive(byte) = "coqConcurrencyProxy.byte"
-archive(native) = "coqConcurrencyProxy.native"
-version = "dev"

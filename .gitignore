@@ -1,4 +1,5 @@
-tests/
+extraction/*.ml
+extraction/*.mli
 website/
 _build/
 *.native

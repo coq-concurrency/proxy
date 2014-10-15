@@ -1,4 +1,4 @@
-(** Run the tests. *)
+(** Compile and run the extracted codes in extraction/. *)
 
 let run (command : string) : unit =
   let code = Sys.command command in
@@ -6,13 +6,13 @@ let run (command : string) : unit =
     exit code
 
 let do_test (test : string) (arguments : string list) =
-  Sys.chdir "tests/";
+  Sys.chdir "extraction/";
   let native = Filename.chop_extension test ^ ".native" in
   let compile = "ocamlbuild " ^ native ^ " -use-ocamlfind -package base64,num,str,unix" in
   run compile;
   Sys.chdir "../";
   let arguments = List.fold_left (fun s1 s2 -> s1 ^ " " ^ s2) "" arguments in
-  run ("tests/" ^ native ^ " " ^ arguments)
+  run ("extraction/" ^ native ^ " " ^ arguments)
 
 let main () =
   match Array.to_list Sys.argv with
