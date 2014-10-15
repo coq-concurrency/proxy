@@ -7,7 +7,7 @@ let run (command : string) : unit =
 
 let do_test (test : string) (arguments : string list) =
   Sys.chdir "extraction/";
-  let native = Filename.chop_extension test ^ ".native" in
+  let native = Filename.chop_extension test ^ ".p.native" in (* .p for profiling *)
   let compile = "ocamlbuild " ^ native ^ " -use-ocamlfind -package base64,num,str,unix" in
   run compile;
   Sys.chdir "../";

@@ -2,6 +2,11 @@ module State = struct
   let clients : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 end
 
+(** Print an error message and flush the output. *)
+let print_error (message : string) : unit Lwt.t =
+  Lwt.bind (Lwt_io.write_line Lwt_io.stderr message) (fun _ ->
+  Lwt_io.flush Lwt_io.stderr)
+
 module Log = struct
   let write (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
@@ -44,6 +49,17 @@ module ClientSocket = struct
         (fun _ -> Lwt_io.printl ("ClientSocketRead " ^ id ^ " "))
     | _ -> failwith "one argument was expected"
 
+  (** Repeat the send Unix command until all the message is sent. *)
+  let rec send (client : Lwt_unix.file_descr) (message : string)
+    (start_index : int) (length : int) : unit Lwt.t =
+    Lwt.bind (Lwt_unix.send client message start_index length []) (fun n ->
+    if n < 0 then
+      failwith "positive number of sent bytes expected"
+    else if n <> length then
+      send client message (start_index + n) (length - n)
+    else
+      Lwt.return ())
+
   let write (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [client_id; message] ->
@@ -54,7 +70,7 @@ module ClientSocket = struct
         | Some client ->
           let message = Base64.decode message in
           let length = String.length message in
-          Lwt.bind (Lwt_unix.send client message 0 length []) (fun _ ->
+          Lwt.bind (send client message 0 length) (fun _ ->
           Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true"))))
         (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false"))
     | _ -> failwith "two arguments were expected"
