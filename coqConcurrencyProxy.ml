@@ -44,7 +44,7 @@ module ClientSocket = struct
             let buffer_size = 1024 in
             let buffer = String.create buffer_size in
             Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
-            if 0 < bytes && bytes < buffer_size then
+            if 0 < bytes && bytes < buffer_size then (* TODO: accept messages of empty size? *)
               let message = Base64.encode (String.sub buffer 0 bytes) in
               Lwt.bind (Lwt_io.printl ("ClientSocketRead " ^ id ^ " " ^ message)) (fun _ ->
               read id arguments)
