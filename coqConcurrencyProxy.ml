@@ -124,6 +124,15 @@ module ServerSocket = struct
     | _ -> Lwt.fail (Failure "one argument was expected")
 end
 
+module Time = struct
+  let get (id : string) (arguments : string list) : unit Lwt.t =
+    match arguments with
+    | [] ->
+      let time = int_of_float (Unix.time ()) in
+      Lwt_io.printl ("ServerSocketBind " ^ id ^ " " ^ string_of_int time)
+    | _ -> Lwt.fail (Failure "no arguments were expected")
+end
+
 let handle (message : string) : unit Lwt.t =
   match Str.split (Str.regexp_string " ") message with
   | command :: id :: arguments ->
@@ -134,6 +143,7 @@ let handle (message : string) : unit Lwt.t =
     | "ClientSocketRead" -> ClientSocket.read id arguments
     | "ClientSocketWrite" -> ClientSocket.write id arguments
     | "ClientSocketClose" -> ClientSocket.close id arguments
+    | "Time" -> Time.get id arguments
     | _ -> Lwt.fail (Failure "unknown command"))
   | _ -> Lwt.fail (Failure "message too short")
 
