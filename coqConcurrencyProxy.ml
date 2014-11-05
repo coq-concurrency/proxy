@@ -129,7 +129,7 @@ module Time = struct
     match arguments with
     | [] ->
       let time = int_of_float (Unix.time ()) in
-      Lwt_io.printl ("ServerSocketBind " ^ id ^ " " ^ string_of_int time)
+      Lwt_io.printl ("Time " ^ id ^ " " ^ string_of_int time)
     | _ -> Lwt.fail (Failure "no arguments were expected")
 end
 
