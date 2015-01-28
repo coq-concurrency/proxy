@@ -2,6 +2,7 @@ extraction/*.ml
 extraction/*.mli
 website/
 _build/
+*.byte
 *.native
 *.annot
 *.cmo
