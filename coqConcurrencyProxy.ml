@@ -1,3 +1,6 @@
+(** Activate the trace of all the messages exchanged with the client. *)
+let debug = false
+
 module State = struct
   let clients : Lwt_unix.file_descr Heap.t ref = ref Heap.empty
 end
@@ -7,6 +10,15 @@ let print_error (message : string) : unit Lwt.t =
   Lwt.bind (Lwt_io.write_line Lwt_io.stderr message) (fun _ ->
   Lwt_io.flush Lwt_io.stderr)
 
+(** Print a message for the client on the standard output. *)
+let print (message : string) : unit Lwt.t =
+  Lwt.bind (
+    if debug then
+      print_error ("IN: " ^ message)
+    else
+      Lwt.return ()) (fun _ ->
+  Lwt_io.printl message)
+
 module Log = struct
   let write (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
@@ -14,8 +26,8 @@ module Log = struct
       let message = Base64.decode message in
       Lwt.catch (fun _ ->
         Lwt.bind (Lwt_io.write_line Lwt_io.stderr message) (fun _ ->
-        Lwt_io.printl ("Log " ^ id ^ " true")))
-        (fun _ -> Lwt_io.printl ("Log " ^ id ^ " false"))
+        print ("Log " ^ id ^ " true")))
+        (fun _ -> print ("Log " ^ id ^ " false"))
     | _ -> Lwt.fail (Failure "one argument was expected")
 end
 
@@ -27,8 +39,8 @@ module File = struct
         Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
         Lwt.bind (Lwt_io.read file) (fun content ->
         let content = Base64.encode content in
-        Lwt_io.printl ("FileRead " ^ id ^ " " ^ content))))
-        (fun _ -> Lwt_io.printl ("FileRead " ^ id ^ " "))
+        print ("FileRead " ^ id ^ " " ^ content))))
+        (fun _ -> print ("FileRead " ^ id ^ " "))
     | _ -> Lwt.fail (Failure "one argument was expected")
 end
 
@@ -46,11 +58,11 @@ module ClientSocket = struct
             Lwt.bind (Lwt_unix.recv client buffer 0 buffer_size []) (fun bytes ->
             if 0 < bytes && bytes < buffer_size then (* TODO: accept messages of empty size? *)
               let message = Base64.encode (String.sub buffer 0 bytes) in
-              Lwt.bind (Lwt_io.printl ("ClientSocketRead " ^ id ^ " " ^ message)) (fun _ ->
+              Lwt.bind (print ("ClientSocketRead " ^ id ^ " " ^ message)) (fun _ ->
               read id arguments)
             else
               Lwt.fail (Failure "Invalid number of bytes."))))
-        (fun _ -> Lwt_io.printl ("ClientSocketRead " ^ id ^ " "))
+        (fun _ -> print ("ClientSocketRead " ^ id ^ " "))
     | _ -> Lwt.fail (Failure "one argument was expected")
 
   (** Repeat the send Unix command until all the message is sent. *)
@@ -75,8 +87,8 @@ module ClientSocket = struct
           let message = Base64.decode message in
           let length = String.length message in
           Lwt.bind (send client message 0 length) (fun _ ->
-          Lwt_io.printl ("ClientSocketWrite " ^ id ^ " true"))))
-        (fun _ -> Lwt_io.printl ("ClientSocketWrite " ^ id ^ " false"))
+          print ("ClientSocketWrite " ^ id ^ " true"))))
+        (fun _ -> print ("ClientSocketWrite " ^ id ^ " false"))
     | _ -> Lwt.fail (Failure "two arguments were expected")
 
   let close (id : string) (arguments : string list) : unit Lwt.t =
@@ -89,8 +101,8 @@ module ClientSocket = struct
         | Some client ->
           State.clients := Heap.remove !State.clients client_id;
           let _ = Lwt_unix.close client in
-          Lwt_io.printl ("ClientSocketClose " ^ id ^ " true")))
-        (fun _ -> Lwt_io.printl ("ClientSocketClose " ^ id ^ " false"))
+          print ("ClientSocketClose " ^ id ^ " true")))
+        (fun _ -> print ("ClientSocketClose " ^ id ^ " false"))
     | _ -> Lwt.fail (Failure "one argument was expected")
 end
 
@@ -100,7 +112,7 @@ module ServerSocket = struct
     let (client_id, clients) = Heap.add !State.clients client in
     State.clients := clients;
     Lwt.join [
-      Lwt_io.printl ("ServerSocketBind " ^ id ^ " " ^ Heap.Id.to_string client_id);
+      print ("ServerSocketBind " ^ id ^ " " ^ Heap.Id.to_string client_id);
       accept_loop id server ])
 
   let bind (id : string) (arguments : string list) : unit Lwt.t =
@@ -120,7 +132,7 @@ module ServerSocket = struct
             Lwt_unix.bind socket address;
             Lwt_unix.listen socket 5;
             accept_loop id socket))
-          (fun _ -> Lwt_io.printl ("ServerSocketBind " ^ id ^ " ")))
+          (fun _ -> print ("ServerSocketBind " ^ id ^ " ")))
     | _ -> Lwt.fail (Failure "one argument was expected")
 end
 
@@ -129,7 +141,7 @@ module Time = struct
     match arguments with
     | [] ->
       let time = int_of_float (Unix.time ()) in
-      Lwt_io.printl ("Time " ^ id ^ " " ^ string_of_int time)
+      print ("Time " ^ id ^ " " ^ string_of_int time)
     | _ -> Lwt.fail (Failure "no arguments were expected")
 end
 
@@ -150,7 +162,12 @@ let handle (message : string) : unit Lwt.t =
 let rec loop_on_inputs () : unit Lwt.t =
   Lwt.catch (fun () ->
     Lwt.bind (Lwt_io.read_line Lwt_io.stdin) (fun message ->
-    Lwt.join [handle message; loop_on_inputs ()]))
+    Lwt.bind (
+      if debug then
+        print_error ("OUT: " ^ message)
+      else
+        Lwt.return ()) (fun _ ->
+    Lwt.join [handle message; loop_on_inputs ()])))
     (function
       | End_of_file -> Lwt.return ()
       | e -> raise e)
