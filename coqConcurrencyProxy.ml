@@ -23,7 +23,7 @@ module File = struct
   let read (id : string) (arguments : string list) : unit Lwt.t =
     match arguments with
     | [file_name] ->
-      Lwt.catch (fun _ -> 
+      Lwt.catch (fun _ ->
         Lwt.bind (Lwt_io.open_file Lwt_io.Input (Base64.decode file_name)) (fun file ->
         Lwt.bind (Lwt_io.read file) (fun content ->
         let content = Base64.encode content in
